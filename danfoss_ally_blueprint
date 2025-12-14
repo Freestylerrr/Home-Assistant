@@ -1,8 +1,7 @@
 blueprint:
   name: Danfoss Ally – External sensor P-boost control
   description: >
-    Řízení Danfoss Ally pomocí externího teplotního senzoru.
-    Home Assistant počítá boost a posílá finální setpoint do hlavice.
+    Blueprint controls the Danfoss Ally thermostat using an external temperature sensor, allowing for dynamic temperature adjustments based on user-defined parameters.
   domain: automation
   input:
     climate_entity:
