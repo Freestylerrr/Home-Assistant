@@ -79,7 +79,7 @@ variables:
   boost_c: "{{ (pct / 100.0 * max_boost_c) | float | round(2) }}"
   boosted_setp: "{{ (user_setp + boost_c) | float | round(1) }}"
 
-   new_sp: >
+  new_sp: >
     {% if err|float <= 0 %}
       {{ user_setp|round(1) }}
     {% else %}
