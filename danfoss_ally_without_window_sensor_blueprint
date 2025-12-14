@@ -72,10 +72,14 @@ variables:
   raw_pct: "{{ (kp * err) | float(0) }}"
   pct: >
     {% set p = raw_pct|float(0) %}
-    {% if p < 0 %} 0
-    {% elif p > 100 %} 100
-    {% else %} {{ p|round(1) }}
+    {% if p < 0 %}
+      0
+    {% elif p > 100 %}
+      100
+    {% else %}
+      {{ p|round(1) }}
     {% endif %}
+
   boost_c: "{{ (pct / 100.0 * max_boost_c) | float | round(2) }}"
   boosted_setp: "{{ (user_setp + boost_c) | float | round(1) }}"
 
@@ -94,7 +98,6 @@ variables:
         {{ final|round(1) }}
       {% endif %}
     {% endif %}
-
 
 action:
   - service: climate.set_temperature
