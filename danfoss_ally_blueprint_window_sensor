@@ -1,0 +1,115 @@
+blueprint:
+  name: Danfoss Ally – P-boost (external sensor) WITH window contact
+  description: >
+    Danfoss Ally controlled by an external temperature sensor, with immediate reaction to an open window.
+  domain: automation
+  input:
+    climate_entity:
+      name: Danfoss Ally thermostat
+      selector:
+        entity:
+          domain: climate
+
+    temp_sensor:
+      name: External temperature sensor
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+
+    window_sensor:
+      name: Window contact
+      selector:
+        entity:
+          domain: binary_sensor
+
+    setpoint:
+      name: User setpoint helper
+      selector:
+        entity:
+          domain: input_number
+
+    kp:
+      name: Kp helper
+      selector:
+        entity:
+          domain: input_number
+
+    max_boost:
+      name: Max boost helper
+      selector:
+        entity:
+          domain: input_number
+
+    activate_delta:
+      name: Activate delta helper
+      selector:
+        entity:
+          domain: input_number
+
+mode: restart
+
+trigger:
+  - platform: time_pattern
+    minutes: "/1"
+
+  - platform: state
+    entity_id:
+      - !input temp_sensor
+      - !input setpoint
+      - !input kp
+      - !input max_boost
+      - !input activate_delta
+      - !input window_sensor
+
+variables:
+  setpoint_entity: !input setpoint
+  temp_entity: !input temp_sensor
+  kp_entity: !input kp
+  max_boost_entity: !input max_boost
+  activate_delta_entity: !input activate_delta
+  window_entity: !input window_sensor
+
+  user_setp: "{{ states(setpoint_entity) | float(21) }}"
+  temp: "{{ states(temp_entity) | float(21) }}"
+  kp: "{{ states(kp_entity) | float(16) }}"
+  max_boost_c: "{{ states(max_boost_entity) | float(1.5) }}"
+  activate_delta: "{{ states(activate_delta_entity) | float(0.8) }}"
+
+  window_open: "{{ is_state(window_entity, 'on') }}"
+
+  err: "{{ (user_setp - temp) | float(0) }}"
+  raw_pct: "{{ (kp * err) | float(0) }}"
+  pct: >
+    {% set p = raw_pct|float(0) %}
+    {% if p < 0 %} 0
+    {% elif p > 100 %} 100
+    {% else %} {{ p|round(1) }}
+    {% endif %}
+  boost_c: "{{ (pct / 100.0 * max_boost_c) | float | round(2) }}"
+  boosted_setp: "{{ (user_setp + boost_c) | float | round(1) }}"
+
+  new_sp: >
+    {% if window_open %}
+      5
+    {% elif err|float <= 0 %}
+      {{ user_setp|round(1) }}
+    {% else %}
+      {% set wake_sp = (temp + activate_delta)|float %}
+      {% set sp = boosted_setp|float %}
+      {% set final = sp if sp > wake_sp else wake_sp %}
+      {% if final < 5 %}
+        5
+      {% elif final > 35 %}
+        35
+      {% else %}
+        {{ final|round(1) }}
+      {% endif %}
+    {% endif %}
+
+action:
+  - service: climate.set_temperature
+    target:
+      entity_id: !input climate_entity
+    data:
+      temperature: "{{ new_sp }}"
